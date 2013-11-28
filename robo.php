@@ -8,7 +8,7 @@ $i=0;
 
 echo "Start \n";
 echo "MIN_AMOUNT: " . $trader->getOrderMinAmount() . "\n";
-$bill = $this->myBill();
+$bill = $trader->myBill();
 $date = date("m-d-Y H:i");
 echo "{$date}: rur: {$bill['rur']}  ltc: {$bill['ltc']} \n";
 
@@ -26,7 +26,7 @@ while (1 == 1) {
     $i++;
     if ($i>=300) {
         $i = 0;
-        $bill = $this->myBill();
+        $bill = $trader->myBill();
         $date = date("m-d-Y H:i");
         echo "{$date}: rur: {$bill['rur']}  ltc: {$bill['ltc']} \n";
     }
