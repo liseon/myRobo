@@ -138,7 +138,6 @@ class Trader
                 'rate' => $rate,
                 'amount' => $amount,
             );
-            var_export($params);
             $trade = $this->API->apiQuery('Trade', $params);
             $trade = $trade['return'];
 
