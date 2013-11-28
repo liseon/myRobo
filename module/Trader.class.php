@@ -66,6 +66,7 @@ class Trader
             return $getInfo['return'];
         } catch (BTCeAPIException $e) {
             echo $e->getMessage();
+            echo "getInfo \n";
 
             return false;
         }
@@ -129,6 +130,7 @@ class Trader
      */
     protected function addOrder($sum, $rate) {
         $amount = $sum/$rate;
+        $amount = sprintf("%01.5f", $amount);
         try {
             $params =array(
                 'pair' => $this->pair,
@@ -136,6 +138,7 @@ class Trader
                 'rate' => $rate,
                 'amount' => $amount,
             );
+            var_export($params);
             $trade = $this->API->apiQuery('Trade', $params);
             $trade = $trade['return'];
 
@@ -145,7 +148,7 @@ class Trader
                 INSERT INTO
                     orders
                 SET
-                    order_id = ''{$trade['order_id']}'',
+                    order_id = '{$trade['order_id']}',
                     pair = '{$this->pair}',
                     rate = '{$rate}',
                     amount = '{$amount}',
@@ -157,6 +160,7 @@ class Trader
             return true;
         } catch(BTCeAPIException $e) {
             echo $e->getMessage();
+            echo "addOrder \n";
 
             return false;
         }
@@ -170,6 +174,7 @@ class Trader
      */
     protected function closeOrder($id, $sum, $rate) {
         $amount = $sum * (1 - $this->config['COMISSION']);
+        $amount = sprintf("%01.5f", $amount);
         try {
             $params =array(
                 'pair' => $this->pair,
@@ -195,6 +200,7 @@ class Trader
             return true;
         } catch(BTCeAPIException $e) {
             echo $e->getMessage();
+            echo "closeOrder \n";
 
             return false;
         }
@@ -220,6 +226,7 @@ class Trader
             return true;
         } catch (BTCeAPIException $e) {
             echo $e->getMessage();
+            echo "oneOrderCancel \n";
 
             return false;
         }
