@@ -145,8 +145,9 @@ class Trader
                 SET
                     order_id = ''{$trade['order_id']}'',
                     pair = '{$this->pair}',
-                    rate = ''{$rate}'',
-                    amount = ''{$amount}''
+                    rate = '{$rate}',
+                    amount = '{$amount}',
+                    updated = NOW()
                 ";
 
             $this->BD->query($sql);
@@ -181,7 +182,8 @@ class Trader
                 UPDATE
                     orders
                 SET
-                    closer_id = '{$trade['order_id']}'
+                    closer_id = '{$trade['order_id']}',
+                    updated = NOW()
                 WHERE
                     order_id = '{$id}'
                 ";
@@ -256,7 +258,8 @@ class Trader
             UPDATE
                 orders
             SET
-                status = 'new'
+                status = 'new',
+                updated = NOW()
             WHERE
                 order_id IN ({$ids})
         ";
@@ -274,7 +277,8 @@ class Trader
             UPDATE
                 orders
             SET
-                status = 'opened'
+                status = 'opened',
+                updated = NOW()
             WHERE
                 closer_id IN ({$ids})
         ";
