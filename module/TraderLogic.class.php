@@ -48,7 +48,7 @@ class TraderLogic extends Trader
         $rate2 = $rateInfo['sell'];
 
         $res = $this->getMyActiveOrders('opened');
-        foreach ($res->fetch_all() as $row) {
+        foreach (mysqli_fetch_all($res) as $row) {
             if ($this->countProfit($row['rate'], $rate2) >= $this->config['PROFIT_LVL']) {
                 $this->closeOrder($row['order_id'], $row['amount'],  $rate2);
             }
@@ -75,12 +75,12 @@ class TraderLogic extends Trader
         }
 
         $res = $this->getMyActiveOrders('new');
-        foreach ($res->fetch_all() as $row) {
+        foreach (mysqli_fetch_all($res) as $row) {
             $new[$row['order_id']] = $row;
         }
 
         $res = $this->getMyActiveOrders('opened', true);
-        foreach ($res->fetch_all() as $row) {
+        foreach (mysqli_fetch_all($res) as $row) {
             $close[$row['closer_id']] = $row;
         }
 

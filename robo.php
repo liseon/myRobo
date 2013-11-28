@@ -6,7 +6,11 @@ $trader = TraderLogic::getInstance();
 $trader->setPair('ltc_rur');
 $i=0;
 
-echo $trader->getOrderMinAmount() . "\n";
+echo "Start \n";
+echo "MIN_AMOUNT: " . $trader->getOrderMinAmount() . "\n";
+$bill = $this->myBill();
+$date = date("m-d-Y H:i");
+echo "{$date}: rur: {$bill['rur']}  ltc: {$bill['ltc']} \n";
 
 while (1 == 1) {
     //Закупаем валюту

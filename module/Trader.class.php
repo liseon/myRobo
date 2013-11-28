@@ -105,7 +105,7 @@ class Trader
                 AND rate BETWEEN {$rate_min} AND {$rate_max}
         ";
         $res = $this->BD->query($sql);
-        $res = $res->fetch_row();
+        $res = mysqli_fetch_row($res);
         if ($res['cnt'] > 0) {
 
             return false;
