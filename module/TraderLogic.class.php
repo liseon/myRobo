@@ -50,7 +50,7 @@ class TraderLogic extends Trader
         $res = $this->getMyActiveOrders('opened');
         while ($row = $res->fetch_array()) {
             if ($this->countProfit($row['rate'], $rate2) >= $this->config['PROFIT_LVL']) {
-                $this->closeOrder($row['id'], $row['amount'],  $rate2);
+                $this->closeOrder($row['id'], $row['amount'],  $rate2, $row['rate']);
             }
         }
 

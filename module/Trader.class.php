@@ -26,6 +26,11 @@ class Trader
 
     protected $local_max = 0;
 
+    /**
+     * @var array virtual
+     */
+    protected $bill;
+
     protected function __construct() {
         $SECRET = include_once('.configuration/secret.config.php');
         $this->API = new BTCeAPI(
@@ -37,6 +42,12 @@ class Trader
         or die("Error " . mysqli_error($this->bd));
 
         $this->config = include_once('.configuration/trader.config.php');
+
+        $this->bill = array(
+            "rur" => 2800,
+            "btc" => 0,
+            "ltc" => 0,
+        );
     }
 
     public function setPair($pair) {
@@ -90,9 +101,35 @@ class Trader
      * @return int
      */
     public function myBill() {
-        $info = $this->getInfo();
 
-        return $info['funds'];
+        return $this->bill;
+    }
+
+    /**
+     * @param $amount
+     * @param $rate
+     * @param string $type
+     * @return bool
+     */
+    public function createVirtualTransaction($amount, $rate, $type = "buy") {
+        if ($type == "buy") {
+            $sum = $amount * $rate;
+            if ($this->bill[$this->currency_from] < $sum) {
+
+                return false;
+            }
+            $this->bill[$this->currency_from] -= $sum;
+            $this->bill[$this->currency_to] += $amount * (1 - $this->config['COMISSION']);
+        } else {
+            if ($this->bill[$this->currency_to] < $amount) {
+
+                return false;
+            }
+            $this->bill[$this->currency_to] -= $amount;
+            $this->bill[$this->currency_from] += $amount * $rate * (1 - $this->config['COMISSION']);
+        }
+
+        return true;
     }
 
     /**
@@ -143,7 +180,7 @@ class Trader
 
         $sql = "
             SELECT COUNT(id) cnt FROM
-                orders
+                orders_virtual
             WHERE
                 pair = '". $this->pair ."'
                 AND status <> 'closed'
@@ -179,45 +216,38 @@ class Trader
         }
         $amount = $sum/$rate;
         $amount = sprintf("%01.5f", $amount);
-        try {
-            $params =array(
-                'pair' => $this->pair,
-                'type' => 'buy',
-                'rate' => $rate,
-                'amount' => $amount,
-            );
-            $trade = $this->API->apiQuery('Trade', $params);
-            $trade = $trade['return'];
 
-            echo "Buy sum: {$sum} rate: {$rate} amount: {$amount} id: {$trade['order_id']} \n";
-
-            if ($trade['order_id'] == 0) {
-                $status = "status = 'opened',";
-            } else {
-                $status = "";
-            }
-
-            $sql = "
-                INSERT INTO
-                    orders
-                SET
-                    order_id = '{$trade['order_id']}',
-                    pair = '{$this->pair}',
-                    rate = '{$rate}',
-                    amount = '{$amount}',
-                    {$status}
-                    updated = NOW()
-                ";
-
-            $this->BD->query($sql);
-
-            return true;
-        } catch(BTCeAPIException $e) {
-            echo $e->getMessage();
-            echo "addOrder \n";
+        if (!$this->createVirtualTransaction($amount, $rate)) {
 
             return false;
         }
+
+        $trade['order_id'] = 0;
+
+        echo "Buy sum: {$sum} rate: {$rate} amount: {$amount} id: {$trade['order_id']} \n";
+
+        if ($trade['order_id'] == 0) {
+            $status = "status = 'opened',";
+        } else {
+            $status = "";
+        }
+
+        $sql = "
+            INSERT INTO
+                orders_virtual
+            SET
+                order_id = '{$trade['order_id']}',
+                pair = '{$this->pair}',
+                rate = '{$rate}',
+                amount = '{$amount}',
+                {$status}
+                updated = NOW()
+            ";
+
+        $this->BD->query($sql);
+
+        return true;
+
     }
 
     /**
@@ -226,45 +256,45 @@ class Trader
      * @param $rate
      * @return bool
      */
-    protected function closeOrder($id, $sum, $rate) {
-        $amount = $sum * (1 - $this->config['COMISSION']);
-        $amount = sprintf("%01.5f", $amount);
-        try {
-            $params =array(
-                'pair' => $this->pair,
-                'type' => 'sell',
-                'rate' => $rate,
-                'amount' => $amount,
-            );
-            $trade = $this->API->apiQuery('Trade', $params);
-            $trade = $trade['return'];
-
-            if ($trade['order_id'] == 0) {
-                $status = "status = 'closed',";
-            } else {
-                $status = "";
-            }
-
-            $sql = "
-                UPDATE
-                    orders
-                SET
-                    closer_id = '{$trade['order_id']}',
-                    {$status}
-                    updated = NOW()
-                WHERE
-                    id = '{$id}'
-                ";
-
-            $this->BD->query($sql);
-
-            return true;
-        } catch(BTCeAPIException $e) {
-            echo $e->getMessage();
-            echo "closeOrder \n";
+    protected function closeOrder($id, $sum, $rate, $rate_buy) {
+        if (!($rate > 0)) {
 
             return false;
         }
+        $amount = $sum * (1 - $this->config['COMISSION']);
+        $amount = sprintf("%01.5f", $amount);
+
+        if (!$this->createVirtualTransaction($amount, $rate, "sell")) {
+
+            return false;
+        }
+
+        $trade['order_id'] = 0;
+        $profit  = $this->countRealProfit($sum, $rate_buy, $rate);
+
+        if ($trade['order_id'] == 0) {
+            $status = "status = 'closed',";
+        } else {
+            $status = "";
+        }
+
+        echo "Sell: rate: {$rate} amount: {$amount} profit: {$profit} RUR \n";
+
+        $sql = "
+            UPDATE
+                orders_virtual
+            SET
+                closer_id = '{$trade['order_id']}',
+                {$status}
+                updated = NOW(),
+                profit = '{$profit}'
+            WHERE
+                id = '{$id}'
+            ";
+
+        $this->BD->query($sql);
+
+        return true;
     }
 
     /**
@@ -278,7 +308,7 @@ class Trader
             if ($id > 0) {
                 $sql = "
                 DELETE
-                    orders
+                    orders_virtual
                 WHERE
                     order_id = '{$id}'
                 ";
@@ -310,7 +340,7 @@ class Trader
             SELECT
                 id, order_id, amount, rate, closer_id
             FROM
-                orders
+                orders_virtual
             WHERE
                  pair = '". $this->pair ."'
                  AND status = '{$type}'
@@ -328,7 +358,7 @@ class Trader
         $ids = implode(",",$new);
         $sql = "
             UPDATE
-                orders
+                orders_virtual
             SET
                 status = 'opened',
                 updated = NOW()
@@ -347,7 +377,7 @@ class Trader
         $ids = implode(",", $opened);
         $sql = "
             UPDATE
-                orders
+                orders_virtual
             SET
                 status = 'closed',
                 updated = NOW()
@@ -357,12 +387,25 @@ class Trader
         return $this->BD->query($sql);
     }
 
-
+    /**
+     * @param $rate1
+     * @param $rate2
+     * @return float
+     */
     protected function countProfit($rate1, $rate2) {
         $buy = 1 - $this->config['COMISSION'];
         $pull = ($buy * $rate2) * $buy;
 
         return ($pull - $rate1) / $rate1;
+    }
+
+    protected function countRealProfit($amount, $rate1, $rate2) {
+        $com = (1 - $this->config['COMISSION']);
+        $sum = $amount * $rate1;
+        $amount *= $com;
+        $pull = $amount * $rate2 * $com;
+
+        return $pull - $sum;
     }
 
 
