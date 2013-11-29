@@ -239,7 +239,7 @@ class Trader
                     {$status}
                     updated = NOW()
                 WHERE
-                    order_id = '{$id}'
+                    id = '{$id}'
                 ";
 
             $this->BD->query($sql);
