@@ -56,6 +56,10 @@ class Trader
     }
 
     public function analizeRate($rate) {
+        if (!($rate > 0)) {
+
+            return false;
+        }
         if ($this->trend == 'up') {
             if ($rate > $this->local_max) {
                 $this->local_max = $rate;
@@ -163,6 +167,10 @@ class Trader
      * @return bool
      */
     protected function addOrder($sum, $rate) {
+        if (!($rate > 0)) {
+
+            return false;
+        }
         $amount = $sum/$rate;
         $amount = sprintf("%01.5f", $amount);
         try {
