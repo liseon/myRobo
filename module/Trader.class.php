@@ -141,7 +141,7 @@ class Trader
             $trade = $this->API->apiQuery('Trade', $params);
             $trade = $trade['return'];
 
-            echo "Buy sum: {$sum} rate: {$rate} amount: {$amount} \n";
+            echo "Buy sum: {$sum} rate: {$rate} amount: {$amount} id: {$trade['order_id']} \n";
 
             $sql = "
                 INSERT INTO
@@ -266,7 +266,7 @@ class Trader
             UPDATE
                 orders
             SET
-                status = 'new',
+                status = 'opened',
                 updated = NOW()
             WHERE
                 order_id IN ({$ids})
@@ -285,7 +285,7 @@ class Trader
             UPDATE
                 orders
             SET
-                status = 'opened',
+                status = 'closed',
                 updated = NOW()
             WHERE
                 closer_id IN ({$ids})
