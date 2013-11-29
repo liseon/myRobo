@@ -3,14 +3,14 @@
 require_once('include.php');
 
 $trader = TraderLogic::getInstance();
-$trader->setPair('ltc_rur');
+$trader->setPair('btc_rur');
 $i=0;
 
 echo "Start \n";
 echo "MIN_AMOUNT: " . $trader->getOrderMinAmount() . "\n";
 $bill = $trader->myBill();
 $date = date("m-d-Y H:i");
-echo "{$date}: rur: {$bill['rur']}  ltc: {$bill['ltc']} \n";
+echo "{$date}: rur: {$bill['rur']}  btc: {$bill['btc']} \n";
 
 while (1 == 1) {
     //Закупаем валюту
@@ -33,7 +33,7 @@ while (1 == 1) {
         $i = 0;
         $bill = $trader->myBill();
         $date = date("m-d-Y H:i");
-        echo "{$date}: rur: {$bill['rur']}  ltc: {$bill['ltc']} \n";
+        echo "{$date}: rur: {$bill['rur']}  btc: {$bill['btc']} \n";
     }
 
     //Отдыхаем
