@@ -141,7 +141,7 @@ class Trader
             $trade = $this->API->apiQuery('Trade', $params);
             $trade = $trade['return'];
 
-            echo "Buy sum: {$sum} rate: {$rate} \n";
+            echo "Buy sum: {$sum} rate: {$rate} amount: {$amount} \n";
 
             $sql = "
                 INSERT INTO
