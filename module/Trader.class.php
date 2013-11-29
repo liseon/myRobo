@@ -143,6 +143,12 @@ class Trader
 
             echo "Buy sum: {$sum} rate: {$rate} amount: {$amount} id: {$trade['order_id']} \n";
 
+            if ($trade['order_id'] == 0) {
+                $status = "status = 'opened',";
+            } else {
+                $status = "";
+            }
+
             $sql = "
                 INSERT INTO
                     orders
@@ -151,6 +157,7 @@ class Trader
                     pair = '{$this->pair}',
                     rate = '{$rate}',
                     amount = '{$amount}',
+                    {$status}
                     updated = NOW()
                 ";
 
@@ -184,11 +191,18 @@ class Trader
             $trade = $this->API->apiQuery('Trade', $params);
             $trade = $trade['return'];
 
+            if ($trade['order_id'] == 0) {
+                $status = "status = 'closed',";
+            } else {
+                $status = "";
+            }
+
             $sql = "
                 UPDATE
                     orders
                 SET
                     closer_id = '{$trade['order_id']}',
+                    {$status}
                     updated = NOW()
                 WHERE
                     order_id = '{$id}'
@@ -213,14 +227,16 @@ class Trader
         try {
             $this->API->apiQuery('CancelOrder', array('order_id' => $id));
 
-            $sql = "
+            if ($id > 0) {
+                $sql = "
                 DELETE
                     orders
                 WHERE
                     order_id = '{$id}'
                 ";
 
-            $this->BD->query($sql);
+                $this->BD->query($sql);
+            }
 
             return true;
         } catch (BTCeAPIException $e) {
@@ -244,7 +260,7 @@ class Trader
         }
         $sql = "
             SELECT
-                order_id, amount, rate, closer_id
+                id, order_id, amount, rate, closer_id
             FROM
                 orders
             WHERE
