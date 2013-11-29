@@ -75,6 +75,13 @@ class Trader
                 $this->local_max = $rate;
             }
         }
+
+        if ($this->trend == 'down' && $rate <= $this->local_min) {
+
+            return true;
+        }
+
+        return false;
     }
 
 
@@ -119,9 +126,8 @@ class Trader
 
             return false;
         }*/
-        $this->analizeRate($rate);
 
-        if ($this->trend == 'up') {
+        if (!$this->analizeRate($rate)) {
 
             return false;
         }
