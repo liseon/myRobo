@@ -24,7 +24,12 @@ while (1 == 1) {
 
 
     $i++;
-    if ($i>=300) {
+
+    if ($i % 10 == 0) {
+        $trader->echoTrend();
+    }
+
+    if ($i>=100) {
         $i = 0;
         $bill = $trader->myBill();
         $date = date("m-d-Y H:i");

@@ -20,6 +20,12 @@ class Trader
 
     protected $currency_to;
 
+    protected $trend = 'up';
+
+    protected $local_min = 10000000;
+
+    protected $local_max = 0;
+
     protected function __construct() {
         $SECRET = include_once('.configuration/secret.config.php');
         $this->API = new BTCeAPI(
@@ -43,6 +49,28 @@ class Trader
     public function getOrderMinAmount() {
 
         return $this->config['ORDER_MIN_AMOUNT'][$this->currency_from];
+    }
+
+    public function echoTrend() {
+        echo "TREND: {$this->trend} MIN: {$this->local_min} MAX: {$this->local_max} \n";
+    }
+
+    public function analizeRate($rate) {
+        if ($this->trend == 'up') {
+            if ($rate > $this->local_max) {
+                $this->local_max = $rate;
+            }  elseif ($rate < $this->local_max * (1 - $this->config['RETURN_LVL'])) {
+                $this->trend = 'down';
+                $this->local_min = $rate;
+            }
+        } else {
+            if ($rate < $this->local_min) {
+                $this->local_min = $rate;
+            }  elseif ($rate > $this->local_min * (1 + $this->config['RETURN_LVL'])) {
+                $this->trend = 'up';
+                $this->local_max = $rate;
+            }
+        }
     }
 
 
@@ -74,7 +102,7 @@ class Trader
 
     /**
      * Проверим, можно ли сделать ордер!
-     * Нельзя, если курс слишком велик
+     * Нельзя, если тренд up
      * Нельзя, если мало денег!
      * Нельзя, если уже есть открытые ордеры в коридоре курса
      * Если денег у нас на 2 и более ордеров, то работаем по стандартной ставке
@@ -83,7 +111,13 @@ class Trader
      * @return bool|float
      */
     protected function isOrderEnabled($rate, $avg) {
-        if ($rate > $avg * (1 + $this->config['RATE_UP_AVG'])) {
+        /*if ($rate > $avg * (1 + $this->config['RATE_UP_AVG'])) {
+
+            return false;
+        }*/
+        $this->analizeRate($rate);
+
+        if ($this->trend == 'up') {
 
             return false;
         }
