@@ -14,7 +14,7 @@ class Adviser
 
     protected $adv2Line = array();
 
-    private function __construct(){
+    private function __construct() {
     }
 
     public static function getInstance() {
@@ -27,7 +27,8 @@ class Adviser
     }
 
     public function echoTrend() {
-        echo "TREND: {$this->trend} MIN: {$this->local_min} MAX: {$this->local_max} \n";
+        echo "TREND: {$this->trend} MIN: {$this->local_min} MAX: {$this->local_max} ";
+        echo " ADV1: {$this->advLine[1]} ADV2: {$this->advLine[2]}  \n";
     }
 
     /**
@@ -40,7 +41,7 @@ class Adviser
         if ($this->trend == 'up') {
             if ($rate > $this->local_max) {
                 $this->local_max = $rate;
-            }  elseif ($rate < $this->local_max * (1 - $return)) {
+            } elseif ($rate < $this->local_max * (1 - $return)) {
                 $this->trend = 'down';
                 $this->local_min = $rate;
 
@@ -49,7 +50,7 @@ class Adviser
         } else {
             if ($rate < $this->local_min) {
                 $this->local_min = $rate;
-            }  elseif ($rate > $this->local_min * (1 + $return)) {
+            } elseif ($rate > $this->local_min * (1 + $return)) {
                 $this->trend = 'up';
                 $this->local_max = $rate;
 
@@ -101,7 +102,7 @@ class Adviser
     private function isAdvBroken($rate) {
         $kol_adv = count($this->advLine);
         $kol_vals = count($this->values);
-        if (!($kol_vals == ConfigHelper::getInstance()->get('VALUES') && $kol_adv == 2)){
+        if (!($kol_vals == ConfigHelper::getInstance()->get('VALUES') && $kol_adv == 2)) {
 
             return false;
         }
@@ -109,7 +110,8 @@ class Adviser
         if (!(
             $this->adv2Line[$kol_adv - 1] >= $this->advLine[$kol_adv - 1]
             && $this->adv2Line[$kol_adv - 2] < $this->advLine[$kol_adv - 2]
-        )) {
+        )
+        ) {
 
             return false;
         }
@@ -174,5 +176,4 @@ class Adviser
 
         return $signal;
     }
-
 }
