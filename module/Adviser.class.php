@@ -12,6 +12,8 @@ class Adviser
 
     protected $advLine = array();
 
+    protected $adv2Line = array();
+
     private function __construct(){
     }
 
@@ -59,7 +61,7 @@ class Adviser
     }
 
     /**
-     * Установит текущий курс в историю + вернет текущее значение средней линии
+     * Установит текущий курс в историю + вернет текущее значение основной средней линии
      * @param $rate
      * @return float|int
      */
@@ -70,13 +72,22 @@ class Adviser
         if ($kol >= ConfigHelper::getInstance()->get('VALUES') + 1) {
             array_shift($this->values);
             $adv = 0;
-            foreach ($this->values as $val) {
+            $adv2 = 0;
+            foreach ($this->values as $k => $val) {
                 $adv += $val;
+                if (
+                    $k >= ConfigHelper::getInstance()->get('VALUES') - ConfigHelper::getInstance()->get('VALUES2') - 1
+                ) {
+                    $adv2 += $val;
+                }
             }
             $adv = $adv / $kol;
+            $adv2 = $adv / ConfigHelper::getInstance()->get('VALUES2');
             $this->advLine[] = $adv;
+            $this->adv2Line[] = $adv2;
             if (count($this->advLine) >= 3) {
                 array_shift($this->advLine);
+                array_shift($this->adv2Line);
             }
         }
 
@@ -96,17 +107,19 @@ class Adviser
         }
 
         if (!(
-            $this->values[$kol_vals - 1] >= $this->advLine[$kol_adv - 1]
-            && $this->values[$kol_vals - 2] < $this->advLine[$kol_adv - 1]
+            $this->adv2Line[$kol_adv - 1] >= $this->advLine[$kol_adv - 1]
+            && $this->adv2Line[$kol_adv - 2] < $this->advLine[$kol_adv - 2]
         )) {
 
             return false;
         }
         //Все проверки пройдены. Сюда попадаем только если действительно мы пробили среднюю линию!
         $angle = Geometric::calcAngle(
-            array($this->values[$kol_vals - 2], $this->values[$kol_vals - 1]),
+            array($this->adv2Line[$kol_adv - 2], $this->adv2Line[$kol_adv - 1]),
             array($this->advLine[$kol_adv - 2], $this->advLine[$kol_adv - 1])
         );
+
+        echo "Angle = {$angle} \n";
 
         if ($angle >= ConfigHelper::getInstance()->get('ANGLE')) {
 
@@ -117,15 +130,13 @@ class Adviser
     }
 
     /**
+     * Возвращает сигнал для покупки!
      * @param $rate
      * @return int
      */
     public function buySignal($rate) {
         $signal = 0;
-        //при развороте можно купить
-        if ($this->setTrend($rate) == "buy") {
-            $signal = 2;
-        }
+        $trend = $this->setTrend($rate);
 
         $adv = $this->setAdvLine($rate);
         //Если мы ПОД средней линией + сильно ушли от локального максимума, то можно купить, цена хорошая!
@@ -136,11 +147,32 @@ class Adviser
             $signal = 1;
         }
 
+        //при развороте можно купить
+        if ($trend == "buy") {
+            $signal = 2;
+        }
 
-
+        //Если наша вспомогательная средняя линия тренда пробивает снизу вверх основную линию тренда под тупым углом,
+        //то считаем данный признак мощным сигналом к росту!
+        if ($this->isAdvBroken($rate)) {
+            $signal = 3;
+        }
 
         return $signal;
+    }
 
+    /**
+     * Сигнал к продаже - разворот
+     * @param $rate
+     * @return int
+     */
+    public function sellSignal($rate) {
+        $signal = 0;
+        if ($this->setTrend($rate) == "sell") {
+            $signal = 1;
+        }
+
+        return $signal;
     }
 
 }

@@ -30,7 +30,7 @@ class TraderLogic extends Trader
         $rateInfo = $this->API->getPairTicker($this->bill->getPair());
         $rateInfo = $rateInfo['ticker'];
 
-        if (!($rateInfo['buy']>0 && $rateInfo['sell']>0)) {
+        if (!($rateInfo['buy'] > 0 && $rateInfo['sell'] > 0)) {
 
             return false;
         }
@@ -51,10 +51,19 @@ class TraderLogic extends Trader
         $rateInfo = $this->API->getPairTicker($this->bill->getPair());
         $rateInfo = $rateInfo['ticker'];
         $rate2 = $rateInfo['sell'];
+        $rate1 = $rateInfo['buy'];
+        if (!($rate1 > 0 && $rate2 > 0)) {
+
+            return false;
+        }
+        $rate = ($rate1 + $rate2) / 2;
 
         $res = $this->getMyActiveOrders('opened');
         while ($row = $res->fetch_array()) {
-            if (MyBill::countProfit($row['rate'], $rate2) >= $this->config->get('PROFIT_LVL')) {  //todo Перенести в Адвизера!
+            if (
+                MyBill::countProfit($row['rate'], $rate2) >= $this->config->get('PROFIT_LVL')
+                && Adviser::getInstance()->sellSignal($rate)
+            ) {
                 $this->closeOrder($row['id'], $row['amount'],  $rate2, $row['rate']);
             }
         }
@@ -93,8 +102,10 @@ class TraderLogic extends Trader
             if (
                 $row['pair'] == $this->bill->getPair()
                 && !$row['status']
-                && ((time() - $this->config->get('MAX_TIME') > $row['timestamp_created'])
-                && $this->oneOrderCancel($id)
+                && (
+                    (time() - $this->config->get('MAX_TIME') > $row['timestamp_created'])
+                    && $this->oneOrderCancel($id)
+                )
             ) {
                 echo "---Cancel: {$id} \n";
             } else {

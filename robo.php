@@ -2,8 +2,19 @@
 
 require_once('include.php');
 
+if ($pair = array_search("-pair", $argv)) {
+    $pair = $argv[$pair + 1];
+} else {
+    $pair = "ltc_rur";
+}
+
 $trader = TraderLogic::getInstance();
-$trader->setPair('btc_rur');
+$trader->setPair($pair);
+
+if (!array_search("-real", $argv)) {
+    $trader->setVirtual(false);
+}
+
 $i=0;
 
 echo "Start \n";
@@ -20,7 +31,6 @@ while (1 == 1) {
 
     //Синхронизируем открытые ордера
     $trader->ordersUpdate();
-
 
     $i++;
 
