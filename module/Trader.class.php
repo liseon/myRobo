@@ -10,21 +10,13 @@ class Trader
      */
     protected $API;
 
-    protected $pair;
-
     protected $BD;
 
     protected $config;
 
-    protected $currency_from;
+    protected $virtual = true;
 
-    protected $currency_to;
-
-    protected $trend = 'up';
-
-    protected $local_min = 10000000;
-
-    protected $local_max = 0;
+    private $table = TABLE_ORDERS_VIRTUAL;
 
     /**
      * @var array virtual
@@ -32,173 +24,117 @@ class Trader
     protected $bill;
 
     protected function __construct() {
-        $SECRET = include_once('.configuration/secret.config.php');
-        $this->API = new BTCeAPI(
-            $SECRET['KEY'],
-            $SECRET['SECRET']
-        );
+        $this->config = ConfigHelper::getInstance();
+        $this->API = ApiHelper::getInstance();
 
-        $this->BD = new mysqli($SECRET['BD_HOST'], $SECRET['BD_USER'], $SECRET['BD_PW'], $SECRET['BD_NAME'])
+        $this->BD = new mysqli(
+            $this->config->getSecret('BD_HOST'),
+            $this->config->getSecret('BD_USER'),
+            $this->config->getSecret('BD_PW'),
+            $this->config->getSecret('BD_NAME')
+        )
         or die("Error " . mysqli_error($this->bd));
 
-        $this->config = include_once('.configuration/trader.config.php');
+        $this->bill = MyBill::getInstance();
+    }
 
-        $this->bill = array(
-            "rur" => 2800,
-            "btc" => 0,
-            "ltc" => 0,
-        );
+    public function setVirtual($virtual = true) {
+        $this->virtual = $virtual;
+        if ($virtual) {
+            $this->table = TABLE_ORDERS_VIRTUAL;
+        } else {
+            $this->table = TABLE_ORDERS;
+        }
     }
 
     public function setPair($pair) {
-        $this->pair = $pair;
-        $curr = explode("_", $this->pair);
-        $this->currency_from = $curr[1];
-        $this->currency_to = $curr[0];
+        $this->bill->setPair($pair);
     }
 
     public function getOrderMinAmount() {
+        $min = $this->config->get('ORDER_MIN_AMOUNT');
 
-        return $this->config['ORDER_MIN_AMOUNT'][$this->currency_from];
+        return $min[$this->bill->getCurrFrom()];
     }
 
-    public function echoTrend() {
-        echo "TREND: {$this->trend} MIN: {$this->local_min} MAX: {$this->local_max} \n";
-    }
-
-    public function analizeRate($rate) {
-        if (!($rate > 0)) {
-
-            return false;
-        }
-        if ($this->trend == 'up') {
-            if ($rate > $this->local_max) {
-                $this->local_max = $rate;
-            }  elseif ($rate < $this->local_max * (1 - $this->config['RETURN_LVL'])) {
-                $this->trend = 'down';
-                $this->local_min = $rate;
-            }
-        } else {
-            if ($rate < $this->local_min) {
-                $this->local_min = $rate;
-            }  elseif ($rate > $this->local_min * (1 + $this->config['RETURN_LVL'])) {
-                $this->trend = 'up';
-                $this->local_max = $rate;
-            }
-        }
-
-        if ($this->trend == 'down' && $rate <= $this->local_min) {
-
-            return true;
-        }
-
-        return false;
-    }
 
 
     /**
-     * Вернет кол-во свободных денег
-     * @return int
+     * Печатает статистику.
+     * Если на виртуальном счету больше, чем на реальном, то ошибка!  Переводим в вирутальный режим!
      */
-    public function myBill() {
+    public function printStat() {
+        $date = date("m-d-Y H:i");
+        $from = $this->bill->getCurrFrom();
+        $to = $this->bill->getCurrTo();
+        echo "{$date}: MODE: {$this->mode} =============== \n";
+        if (!$this->virtual) {
+            $info = MyBill::getInfo();
+            $real = $info['funds'];
 
-        return $this->bill;
-    }
-
-    /**
-     * @param $amount
-     * @param $rate
-     * @param string $type
-     * @return bool
-     */
-    public function createVirtualTransaction($amount, $rate, $type = "buy") {
-        if ($type == "buy") {
-            $sum = $amount * $rate;
-            if ($this->bill[$this->currency_from] < $sum) {
-
-                return false;
+            if (
+                $real[$from] < $this->bill->myBill('from')
+                || $real[$to] < $this->bill->myBill('to')
+            ) {
+                echo "ERROR! Real bill < Virtual! \n Virtual mode ON!";
+                $this->setVirtual(true);
             }
-            $this->bill[$this->currency_from] -= $sum;
-            $this->bill[$this->currency_to] += $amount * (1 - $this->config['COMISSION']);
-        } else {
-            if ($this->bill[$this->currency_to] < $amount) {
-
-                return false;
-            }
-            $this->bill[$this->currency_to] -= $amount;
-            $this->bill[$this->currency_from] += $amount * $rate * (1 - $this->config['COMISSION']);
+            echo "REAL: {$from}: {$real[$from]}";
+            echo "{$to}: {$real[$to]} \n";
         }
 
-        return true;
+        echo "VIRTUAL: {$from}: {$this->bill->myBill('from')}";
+        echo "{$to}: {$this->bill->myBill('to')} \n";
     }
 
-    /**
-     * @return bool|array
-     */
-    protected function getInfo() {
-        try {
-            $getInfo = $this->API->apiQuery('getInfo');
-
-            return $getInfo['return'];
-        } catch (BTCeAPIException $e) {
-            echo $e->getMessage();
-            echo "getInfo \n";
-
-            return false;
-        }
-    }
 
     /**
      * Проверим, можно ли сделать ордер!
-     * Нельзя, если тренд up
+     * Коридор - это +- на шкале курса от существующей ставки
+     * Проверим сигнал:
+     *     0 - нет сигнала
+     *     1 - можно сделать ставку, если она не последняя
+     *     2 - разворот на растущий тренд - игнорируем коридор
+     *     3 - пробили среднюю линию с хорошим углом! Можно потратить последнюю ставку!
      * Нельзя, если мало денег!
-     * Нельзя, если уже есть открытые ордеры в коридоре курса
      * Если денег у нас на 2 и более ордеров, то работаем по стандартной ставке
-     * Если Денег меньше, чем на 2 ставки, то поставим сразу все!
+     * Если Денег меньше, чем на 2 ставки, то поставим сразу все, но при сильном сигнале!
      * @param $rate
      * @return bool|float
      */
-    protected function isOrderEnabled($rate, $avg) {
-        /*if ($rate > $avg * (1 + $this->config['RATE_UP_AVG'])) {
-
-            return false;
-        }*/
-
-        if (!$this->analizeRate($rate)) {
+    protected function isOrderEnabled($rate_buy, $rate_sell) {
+        $rate = ($rate_buy + $rate_sell) / 2;
+        $signal = Adviser::getInstance()->buySignal($rate);
+        if (!$signal) {
 
             return false;
         }
 
-        $bill = $this->myBill();
-        $bill = $bill[$this->currency_from];
+        $bill = $this->bill->myBill('from');
         if ($bill < $this->getOrderMinAmount()) {
+            if ($signal == 3) {
+                echo "!!!-----> Signal 3, But not enough money! \n";
+            }
 
             return false;
         }
-        $rate_min = $rate * (1 - $this->config['RATE_DIFF']);
-        $rate_max = $rate * (1 + $this->config['RATE_DIFF']);
 
-        $sql = "
-            SELECT COUNT(id) cnt FROM
-                orders_virtual
-            WHERE
-                pair = '". $this->pair ."'
-                AND status <> 'closed'
-                AND rate BETWEEN {$rate_min} AND {$rate_max}
-        ";
-        $res = $this->BD->query($sql);
-        $res = mysqli_fetch_array($res);
-        if ($res['cnt'] > 0) {
+        if ($signal == 1 && $this->haveThisRateOrders($rate_buy)){
 
             return false;
         }
+
+        echo "-----> Signal_type: {$signal} \n";
 
         if ($bill >= $this->getOrderMinAmount() * 2) {
 
             return $this->getOrderMinAmount();
-        } else {
+        } elseif ($signal == 3) {
 
             return $bill;
+        } else {
+
+            return false;
         }
 
     }
@@ -217,36 +153,48 @@ class Trader
         $amount = $sum/$rate;
         $amount = sprintf("%01.5f", $amount);
 
-        if (!$this->createVirtualTransaction($amount, $rate)) {
+        try {
+            $params =array(
+                'pair' => $this->bill->getPair(),
+                'type' => 'buy',
+                'rate' => $rate,
+                'amount' => $amount,
+            );
+            if (!$this->virtual) {
+                $trade = $this->API->apiQuery('Trade', $params);
+                $trade = $trade['return'];
+            } else {
+                $trade['order_id'] = 0;
+            }
+            $this->bill->createVirtualTransaction($amount, $rate);
+
+            if ($trade['order_id'] == 0) {
+                $status = "status = 'opened',";
+            } else {
+                $status = "";
+            }
+
+            $sql = "
+                INSERT INTO
+                    {$this->table}
+                SET
+                    order_id = '{$trade['order_id']}',
+                    pair = '". $this->bill->getPair() . "',
+                    rate = '{$rate}',
+                    amount = '{$amount}',
+                    {$status}
+                    updated = NOW()
+                ";
+
+            $this->BD->query($sql);
+
+            return true;
+        } catch(BTCeAPIException $e) {
+            echo $e->getMessage();
+            echo __FUNCTION__ . " \n";
 
             return false;
         }
-
-        $trade['order_id'] = 0;
-
-        echo "Buy sum: {$sum} rate: {$rate} amount: {$amount} id: {$trade['order_id']} \n";
-
-        if ($trade['order_id'] == 0) {
-            $status = "status = 'opened',";
-        } else {
-            $status = "";
-        }
-
-        $sql = "
-            INSERT INTO
-                orders_virtual
-            SET
-                order_id = '{$trade['order_id']}',
-                pair = '{$this->pair}',
-                rate = '{$rate}',
-                amount = '{$amount}',
-                {$status}
-                updated = NOW()
-            ";
-
-        $this->BD->query($sql);
-
-        return true;
 
     }
 
@@ -261,40 +209,52 @@ class Trader
 
             return false;
         }
-        $amount = $sum * (1 - $this->config['COMISSION']);
+        $amount = $sum * (1 - $this->config->get('COMISSION'));
         $amount = sprintf("%01.5f", $amount);
 
-        if (!$this->createVirtualTransaction($amount, $rate, "sell")) {
+        try {
+            $params =array(
+                'pair' => $this->bill->getPair(),
+                'type' => 'sell',
+                'rate' => $rate,
+                'amount' => $amount,
+            );
+            if (!$this->virtual) {
+                $trade = $this->API->apiQuery('Trade', $params);
+                $trade = $trade['return'];
+            } else {
+                $trade['order_id'] = 0;
+            }
+            $profit  = MyBill::countRealProfit($sum, $rate_buy, $rate);
+            $this->bill->createVirtualTransaction($amount, $rate, "sell", $profit);
+
+            if ($trade['order_id'] == 0) {
+                $status = "status = 'closed',";
+            } else {
+                $status = "";
+            }
+
+            $sql = "
+                UPDATE
+                    {$this->table}
+                SET
+                    closer_id = '{$trade['order_id']}',
+                    {$status}
+                    updated = NOW(),
+                    profit = '{$profit}'
+                WHERE
+                    id = '{$id}'
+                ";
+
+            $this->BD->query($sql);
+
+            return true;
+        } catch (BTCeAPIException $e) {
+            echo $e->getMessage();
+            echo __FUNCTION__ . " \n";
 
             return false;
-        }
-
-        $trade['order_id'] = 0;
-        $profit  = $this->countRealProfit($sum, $rate_buy, $rate);
-
-        if ($trade['order_id'] == 0) {
-            $status = "status = 'closed',";
-        } else {
-            $status = "";
-        }
-
-        echo "Sell: rate: {$rate} amount: {$amount} profit: {$profit} RUR \n";
-
-        $sql = "
-            UPDATE
-                orders_virtual
-            SET
-                closer_id = '{$trade['order_id']}',
-                {$status}
-                updated = NOW(),
-                profit = '{$profit}'
-            WHERE
-                id = '{$id}'
-            ";
-
-        $this->BD->query($sql);
-
-        return true;
+}
     }
 
     /**
@@ -308,7 +268,7 @@ class Trader
             if ($id > 0) {
                 $sql = "
                 DELETE
-                    orders_virtual
+                    {$this->table}
                 WHERE
                     order_id = '{$id}'
                 ";
@@ -340,9 +300,9 @@ class Trader
             SELECT
                 id, order_id, amount, rate, closer_id
             FROM
-                orders_virtual
+                {$this->table}
             WHERE
-                 pair = '". $this->pair ."'
+                 pair = '". $this->bill->getPair() ."'
                  AND status = '{$type}'
                  {$dop}
         ";
@@ -358,7 +318,7 @@ class Trader
         $ids = implode(",",$new);
         $sql = "
             UPDATE
-                orders_virtual
+                {$this->table}
             SET
                 status = 'opened',
                 updated = NOW()
@@ -377,7 +337,7 @@ class Trader
         $ids = implode(",", $opened);
         $sql = "
             UPDATE
-                orders_virtual
+                {$this->table}
             SET
                 status = 'closed',
                 updated = NOW()
@@ -388,25 +348,30 @@ class Trader
     }
 
     /**
-     * @param $rate1
-     * @param $rate2
-     * @return float
+     * Проверим наличие ордеров в данном коридоре курса
+     * @param $rate
+     * @return bool
      */
-    protected function countProfit($rate1, $rate2) {
-        $buy = 1 - $this->config['COMISSION'];
-        $pull = ($buy * $rate2) * $buy;
+    public function haveThisRateOrders($rate) {
+        $rate_min = $rate * (1 - $this->config->get('RATE_DIFF'));
+        $rate_max = $rate * (1 + $this->config->get('RATE_DIFF'));
 
-        return ($pull - $rate1) / $rate1;
+        $sql = "
+            SELECT COUNT(id) cnt FROM
+                {$this->table}
+            WHERE
+                pair = '". $this->bill->getPair() ."'
+                AND status <> 'closed'
+                AND rate BETWEEN {$rate_min} AND {$rate_max}
+        ";
+        $res = $this->BD->query($sql);
+        $res = mysqli_fetch_array($res);
+        if ($res['cnt'] > 0) {
+
+            return true;
+        }
+
+        return false;
     }
-
-    protected function countRealProfit($amount, $rate1, $rate2) {
-        $com = (1 - $this->config['COMISSION']);
-        $sum = $amount * $rate1;
-        $amount *= $com;
-        $pull = $amount * $rate2 * $com;
-
-        return $pull - $sum;
-    }
-
 
 }

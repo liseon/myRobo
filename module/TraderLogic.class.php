@@ -27,10 +27,15 @@ class TraderLogic extends Trader
      * @return bool
      */
     public function ordersCreate() {
-        $rateInfo = $this->API->getPairTicker($this->pair);
+        $rateInfo = $this->API->getPairTicker($this->bill->getPair());
         $rateInfo = $rateInfo['ticker'];
 
-        $sum = $this->isOrderEnabled($rateInfo['buy'], $rateInfo['avg']);
+        if (!($rateInfo['buy']>0 && $rateInfo['sell']>0)) {
+
+            return false;
+        }
+
+        $sum = $this->isOrderEnabled($rateInfo['buy'], $rateInfo['sell']);
         if ($sum) {
             $this->addOrder($sum, $rateInfo['buy']);
 
@@ -43,13 +48,13 @@ class TraderLogic extends Trader
      *  Фиксируем прибыль
      */
     public function ordersCloser() {
-        $rateInfo = $this->API->getPairTicker($this->pair);
+        $rateInfo = $this->API->getPairTicker($this->bill->getPair());
         $rateInfo = $rateInfo['ticker'];
         $rate2 = $rateInfo['sell'];
 
         $res = $this->getMyActiveOrders('opened');
         while ($row = $res->fetch_array()) {
-            if ($this->countProfit($row['rate'], $rate2) >= $this->config['PROFIT_LVL']) {
+            if (MyBill::countProfit($row['rate'], $rate2) >= $this->config->get('PROFIT_LVL')) {  //todo Перенести в Адвизера!
                 $this->closeOrder($row['id'], $row['amount'],  $rate2, $row['rate']);
             }
         }
@@ -86,9 +91,9 @@ class TraderLogic extends Trader
 
         foreach ($orders['return'] as $id => $row) {
             if (
-                $row['pair'] == $this->pair
+                $row['pair'] == $this->bill->getPair()
                 && !$row['status']
-                && ((time() - $this->config['MAX_TIME']) > $row['timestamp_created'])
+                && ((time() - $this->config->get('MAX_TIME') > $row['timestamp_created'])
                 && $this->oneOrderCancel($id)
             ) {
                 echo "---Cancel: {$id} \n";

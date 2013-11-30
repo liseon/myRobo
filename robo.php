@@ -8,9 +8,8 @@ $i=0;
 
 echo "Start \n";
 echo "MIN_AMOUNT: " . $trader->getOrderMinAmount() . "\n";
-$bill = $trader->myBill();
-$date = date("m-d-Y H:i");
-echo "{$date}: rur: {$bill['rur']}  btc: {$bill['btc']} \n";
+
+$trader->printStat();
 
 while (1 == 1) {
     //Закупаем валюту
@@ -26,14 +25,12 @@ while (1 == 1) {
     $i++;
 
     if ($i % 10 == 0) {
-        $trader->echoTrend();
+        Adviser::getInstance()->echoTrend();
     }
 
     if ($i>=100) {
         $i = 0;
-        $bill = $trader->myBill();
-        $date = date("m-d-Y H:i");
-        echo "{$date}: rur: {$bill['rur']}  btc: {$bill['btc']} \n";
+        $trader->printStat();
     }
 
     //Отдыхаем
