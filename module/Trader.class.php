@@ -67,7 +67,12 @@ class Trader
         $date = date("m-d-Y H:i");
         $from = $this->bill->getCurrFrom();
         $to = $this->bill->getCurrTo();
-        echo "{$date}: MODE: {$this->mode} =============== \n";
+        if ($this->virtual) {
+            $mode = "virtual";
+        } else {
+            $mode = "real";
+        }
+        echo "{$date}: MODE: {$mode} =============== \n";
         if (!$this->virtual) {
             $info = MyBill::getInfo();
             $real = $info['funds'];
@@ -83,7 +88,7 @@ class Trader
             echo "{$to}: {$real[$to]} \n";
         }
 
-        echo "VIRTUAL: {$from}: {$this->bill->myBill('from')}";
+        echo "VIRTUAL: {$from}: {$this->bill->myBill('from')} ";
         echo "{$to}: {$this->bill->myBill('to')} \n";
     }
 

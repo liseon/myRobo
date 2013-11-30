@@ -11,7 +11,7 @@ if ($pair = array_search("-pair", $argv)) {
 $trader = TraderLogic::getInstance();
 $trader->setPair($pair);
 
-if (!array_search("-real", $argv)) {
+if (array_search("-real", $argv)) {
     $trader->setVirtual(false);
 }
 
@@ -19,6 +19,7 @@ $i=0;
 
 echo "Start \n";
 echo "MIN_AMOUNT: " . $trader->getOrderMinAmount() . "\n";
+echo "Pair: {$pair} \n";
 
 $trader->printStat();
 

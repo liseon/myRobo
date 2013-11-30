@@ -55,7 +55,7 @@ class MyBill
      * @return int
      */
     public function myBill($from = false) {
-        if (!from) {
+        if (!$from) {
 
             return $this->bill;
         } elseif ($from == 'from') {
