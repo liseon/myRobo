@@ -72,9 +72,9 @@ class Adviser
         $this->values[] = $rate;
         $adv = 0;
         $kol = count($this->values);
-        if ($kol >= ConfigHelper::getInstance()->get('VALUES2') + 1) {
+        if ($kol >= ConfigHelper::getInstance()->get('VALUES') + 1) {
             array_shift($this->values);
-            $kol -=1;
+            $kol -= 1;
             $adv = 0;
             $adv2 = 0;
             foreach ($this->values as $k => $val) {
