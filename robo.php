@@ -13,7 +13,7 @@ $trader->setPair($pair);
 
 if (array_search("-real", $argv)) {
     $trader->setVirtual(false);
-    MyBill::updateBill();
+    MyBill::getInstance()->updateBill();
 }
 
 $i=0;
@@ -46,7 +46,7 @@ while (1 == 1) {
 
         if (array_search("-real", $argv)) {
             $trader->setVirtual(false);
-            MyBill::updateBill();
+            MyBill::getInstance()->updateBill();
         }
     }
 
