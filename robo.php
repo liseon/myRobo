@@ -13,6 +13,7 @@ $trader->setPair($pair);
 
 if (array_search("-real", $argv)) {
     $trader->setVirtual(false);
+    MyBill::updateBill();
 }
 
 $i=0;
@@ -28,10 +29,10 @@ while (1 == 1) {
     $trader->ordersCreate();
 
     //Фиксим прибыль по открытым ордерам!
-  //  $trader->ordersCloser();
+    $trader->ordersCloser();
 
     //Синхронизируем открытые ордера
- //   $trader->ordersUpdate();
+    $trader->ordersUpdate();
 
     $i++;
 
@@ -42,6 +43,11 @@ while (1 == 1) {
     if ($i>=100) {
         $i = 0;
         $trader->printStat();
+
+        if (array_search("-real", $argv)) {
+            $trader->setVirtual(false);
+            MyBill::updateBill();
+        }
     }
 
     //Отдыхаем

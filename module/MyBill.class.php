@@ -22,6 +22,19 @@ class MyBill
         );
     }
 
+    public function updateBill() {
+        $info = self::getInfo();
+        $from = $this->bill->getCurrFrom();
+        $to = $this->bill->getCurrTo();
+        if ($info) {
+            $real = $info['funds'];
+            if ($real[$from] > 0 &&  $real[$to] > 0) {
+                $this->bill[$from] = $real[$from];
+                $this->bill[$to] = $real[$to];
+            }
+        }
+    }
+
     public static function getInstance() {
         static $bill = null;
         if (is_null($bill)) {
