@@ -89,7 +89,7 @@ class Adviser
             }
             $adv = $adv / $kol;
             $adv2 = $adv2 / $kol2;
-            echo "kol2 = {$kol2}";
+            echo "kol2 = {$kol2} ; kol1 = {$kol}";
             $this->advLine[] = $adv;
             $this->adv2Line[] = $adv2;
             $this->adv2Line[] = $adv2;
