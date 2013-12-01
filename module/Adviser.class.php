@@ -28,7 +28,7 @@ class Adviser
 
     public function echoTrend() {
         echo "TREND: {$this->trend} MIN: {$this->local_min} MAX: {$this->local_max} ";
-        echo " ADV1: {$this->advLine[1]} ADV2: {$this->advLine[2]}  \n";
+        echo " ADV1: {$this->advLine[1]} ADV2: {$this->adv2Line[1]}  \n";
     }
 
     /**
@@ -83,7 +83,7 @@ class Adviser
                 }
             }
             $adv = $adv / $kol;
-            $adv2 = $adv / ConfigHelper::getInstance()->get('VALUES2');
+            $adv2 = $adv2 / ConfigHelper::getInstance()->get('VALUES2');
             $this->advLine[] = $adv;
             $this->adv2Line[] = $adv2;
             if (count($this->advLine) >= 3) {
@@ -141,6 +141,10 @@ class Adviser
         $trend = $this->setTrend($rate);
 
         $adv = $this->setAdvLine($rate);
+        if (!$adv) {
+
+            return false;
+        }
         //Если мы ПОД средней линией + сильно ушли от локального максимума, то можно купить, цена хорошая!
         if (
             $rate < $adv
