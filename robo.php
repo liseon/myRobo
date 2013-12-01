@@ -28,10 +28,10 @@ while (1 == 1) {
     $trader->ordersCreate();
 
     //Фиксим прибыль по открытым ордерам!
-    $trader->ordersCloser();
+  //  $trader->ordersCloser();
 
     //Синхронизируем открытые ордера
-    $trader->ordersUpdate();
+ //   $trader->ordersUpdate();
 
     $i++;
 

@@ -28,7 +28,9 @@ class Adviser
 
     public function echoTrend() {
         echo "TREND: {$this->trend} MIN: {$this->local_min} MAX: {$this->local_max} ";
+        if (isset($this->advLine[1])) {
         echo " ADV1: {$this->advLine[1]} ADV2: {$this->adv2Line[1]}  \n";
+        }
     }
 
     /**
@@ -70,14 +72,15 @@ class Adviser
         $this->values[] = $rate;
         $adv = 0;
         $kol = count($this->values);
-        if ($kol >= ConfigHelper::getInstance()->get('VALUES') + 1) {
+        if ($kol >= ConfigHelper::getInstance()->get('VALUES2') + 1) {
             array_shift($this->values);
+            $kol -=1;
             $adv = 0;
             $adv2 = 0;
             foreach ($this->values as $k => $val) {
                 $adv += $val;
                 if (
-                    $k >= ConfigHelper::getInstance()->get('VALUES') - ConfigHelper::getInstance()->get('VALUES2') - 1
+                    $k >= $kol - ConfigHelper::getInstance()->get('VALUES2') - 1
                 ) {
                     $adv2 += $val;
                 }
