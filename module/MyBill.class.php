@@ -16,9 +16,9 @@ class MyBill
 
     private function __construct() {
         $this->bill = array(
-            "rur" => 2800,
+            "rur" => 1130,
             "btc" => 0,
-            "ltc" => 0,
+            "ltc" => 1.0911886,
         );
     }
 
