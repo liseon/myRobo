@@ -81,7 +81,7 @@ class Adviser
             foreach ($this->values as $k => $val) {
                 $adv += $val;
                 if (
-                    $k >= $kol - ConfigHelper::getInstance()->get('VALUES2') - 1
+                    $k >= $kol - ConfigHelper::getInstance()->get('VALUES2')
                 ) {
                     $kol2++;
                     $adv2 += $val;
@@ -89,9 +89,7 @@ class Adviser
             }
             $adv = $adv / $kol;
             $adv2 = $adv2 / $kol2;
-            echo "kol2 = {$kol2} ; kol1 = {$kol}";
             $this->advLine[] = $adv;
-            $this->adv2Line[] = $adv2;
             $this->adv2Line[] = $adv2;
             if (count($this->advLine) >= 3) {
                 array_shift($this->advLine);
