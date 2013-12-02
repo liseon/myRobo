@@ -104,7 +104,7 @@ class Adviser
      * @param $rate
      * @return bool
      */
-    private function isAdvBroken($rate) {
+    private function isAdvBroken($rate, $type = "buy") {
         $kol_adv = count($this->advLine);
         $kol_vals = count($this->values);
         if (!($kol_vals == ConfigHelper::getInstance()->get('VALUES') && $kol_adv == 2)) {
@@ -113,8 +113,15 @@ class Adviser
         }
 
         if (!(
-            $this->adv2Line[$kol_adv - 1] >= $this->advLine[$kol_adv - 1]
+            (
+			$this->adv2Line[$kol_adv - 1] >= $this->advLine[$kol_adv - 1]
             && $this->adv2Line[$kol_adv - 2] < $this->advLine[$kol_adv - 2]
+			&& $type == "buy"
+			) || (
+			$this->adv2Line[$kol_adv - 1] <= $this->advLine[$kol_adv - 1]
+            && $this->adv2Line[$kol_adv - 2] > $this->advLine[$kol_adv - 2]
+			&& $type == "sell"
+			) 
         )
         ) {
 
@@ -126,7 +133,7 @@ class Adviser
             array($this->advLine[$kol_adv - 2], $this->advLine[$kol_adv - 1])
         );
 
-        echo "Angle = {$angle} \n";
+        echo "Angle({$type}) = {$angle} \n";
 
         if ($angle >= ConfigHelper::getInstance()->get('ANGLE')) {
 
@@ -181,6 +188,9 @@ class Adviser
         $signal = 0;
         if ($this->setTrend($rate) == "sell") {
             $signal = 1;
+        }
+		if ($this->isAdvBroken($rate, "sell")) {
+            $signal = 3;
         }
 
         return $signal;

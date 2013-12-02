@@ -62,7 +62,7 @@ class TraderLogic extends Trader
         while ($row = $res->fetch_array()) {
             if (
                 MyBill::countProfit($row['rate'], $rate2) >= $this->config->get('PROFIT_LVL')
-                && Adviser::getInstance()->sellSignal($rate)
+                && Adviser::getInstance()->sellSignal($rate) > 0
             ) {
                 $this->closeOrder($row['id'], $row['amount'],  $rate2, $row['rate']);
             }
